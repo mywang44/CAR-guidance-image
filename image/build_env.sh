@@ -1,6 +1,6 @@
-conda create -n flowgrad python=3.10
+conda create -n car_guidance_image python=3.10
 
-conda activate flowgrad
+conda activate car_guidance_image
 
 conda install numpy=1.26.4 pytorch=2.1.1 torchvision=0.16.1 pytorch-cuda=11.8 -c pytorch -c nvidia
 

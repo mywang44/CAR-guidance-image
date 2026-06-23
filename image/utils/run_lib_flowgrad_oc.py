@@ -113,9 +113,9 @@ def gcar_edit_batch_multiprompt(config, model_path, image_paths, text_prompts, o
         # =====================================================================
         is_learnable = True # 开启 Residual Net 的训练模式
         
-        from utils.composed_guidance import ImageGCarOnlineGuidance
+        from utils.composed_guidance import ImageGCovGGMOnlineGuidance
         lr_gcov = 4400
-        guided_field = ImageGCarOnlineGuidance(
+        guided_field = ImageGCovGGMOnlineGuidance(
             base_model=model_fn,                 # 对应源流匹配的 `vf` (基础速度场)
             loss_fns=L_N_list,                   # 对应源流匹配的 `classifiers`
             scales=[lr_gcov] * num_prompts,       # 对应源流匹配的 `scales`
@@ -160,7 +160,7 @@ def gcar_edit_batch_multiprompt(config, model_path, image_paths, text_prompts, o
             for p_idx in range(num_prompts):
                 # 1. 为当前单一 Prompt 构造一个专属的引导场
                 # 因为单 Prompt 没有冲突，所以直接关闭 learnable 和 conflict_weight
-                single_guided_field = ImageGCarOnlineGuidance(
+                single_guided_field = ImageGCovGGMOnlineGuidance(
                     base_model=model_fn,
                     loss_fns=[L_N_list[p_idx]],       # 🔴 关键：只传入当前这一个 CLIP Loss
                     scales=[lr_gcov],      # 🔴 使用 lr_gcov 对齐 OC 强度
@@ -185,8 +185,8 @@ def gcar_edit_batch_multiprompt(config, model_path, image_paths, text_prompts, o
             print("\n--- Generating Combined Trajectory ---")
             lr_gcov = 4400
             # 实例化合并引导场，严格关闭所有网络学习和冲突项
-            from utils.composed_guidance import ImageGCarOnlineGuidance
-            combined_guided_field = ImageGCarOnlineGuidance(
+            from utils.composed_guidance import ImageGCovGGMOnlineGuidance
+            combined_guided_field = ImageGCovGGMOnlineGuidance(
                 base_model=model_fn,
                 loss_fns=L_N_list,                          
                 scales=[lr_gcov] * num_prompts,    

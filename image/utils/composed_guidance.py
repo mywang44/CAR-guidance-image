@@ -128,7 +128,7 @@ class Up(nn.Module):
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
 
-class ImageGCarOnlineGuidance:
+class ImageGCovGGMOnlineGuidance:
     def __init__(self, base_model, loss_fns, scales, config, learnable=True, conflict_weight=0.1):
         self.flow_model = base_model
         self.classifiers = loss_fns    # 对应 2D 里的 classifiers (这里是 L_N_list)
@@ -421,7 +421,7 @@ class ImageGCarOnlineGuidance:
         self.learned_guidance_model.train()
         
         # 增加和 2D 一模一样的启动日志打印
-        print(f"[ImageGCarOnlineGuidance] Training Online Residual model ({steps} steps)")
+        print(f"[ImageGCovGGMOnlineGuidance] Training Online Residual model ({steps} steps)")
         
         # 下面的循环变量完全使用 steps
         for i in range(steps):
