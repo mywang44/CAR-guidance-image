@@ -37,7 +37,7 @@ from eval_metrics import (
     _compute_blip_itm_scores,
     _compute_vqa_scores,
 )
-from flowgrad_utils import clip_semantic_loss
+from gcar_utils import clip_semantic_loss
 
 # ===========================================================================
 # 全局配置

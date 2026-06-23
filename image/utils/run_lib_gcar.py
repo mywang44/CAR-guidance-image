@@ -20,7 +20,7 @@ import RectifiedFlow.datasets as datasets
 from RectifiedFlow.models.utils import get_model_fn
 from RectifiedFlow.models import utils as mutils
 
-from .flowgrad_utils import get_img, embed_to_latent, clip_semantic_loss, save_img, generate_traj
+from .gcar_utils import get_img, embed_to_latent, clip_semantic_loss, save_img, generate_traj
 # from id_loss.loss_fn import IDLoss
 
 import torch.nn.functional as F

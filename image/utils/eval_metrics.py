@@ -16,9 +16,9 @@ import torch
 import torch.nn.functional as F
 
 try:
-    from .flowgrad_utils import clip_semantic_loss
+    from .gcar_utils import clip_semantic_loss
 except ImportError:
-    from flowgrad_utils import clip_semantic_loss
+    from gcar_utils import clip_semantic_loss
 
 try:
     import pyiqa
@@ -370,7 +370,7 @@ def _compute_fer_scores(img_tensor):
 
 
 # ===========================================================================
-# High-level helpers used by run_lib_flowgrad_oc.py
+# High-level helpers used by run_lib_gcar.py
 # ===========================================================================
 
 def compute_evaluation_metrics(

@@ -9,7 +9,7 @@ from absl import app, flags
 from ml_collections.config_flags import config_flags
 
 # Custom library imports
-from utils import run_lib_flowgrad_oc
+from utils import run_lib_gcar
 
 FLAGS = flags.FLAGS
 
@@ -112,7 +112,7 @@ def main(argv):
             current_batch_paths = [img_path]
 
             print("Using GCAR (Trained Residual Guidance)")
-            run_lib_flowgrad_oc.gcar_edit_batch_multiprompt(
+            run_lib_gcar.gcar_edit_batch_multiprompt(
                 FLAGS.config, MODEL_PATH, current_batch_paths, current_prompts, output_dir,
                 method=FLAGS.method, alpha=ALPHA, lr_gcov=LR_DEFAULT, lr_res=FLAGS.conflict_lr,
                 conflict_weight=FLAGS.conflict_weight,

@@ -1,6 +1,5 @@
-# OC-Flow
+# CAR Guidance — Image Experiment
 
-This code follows from [FlowGrad](https://github.com/gnobitab/FlowGrad).
 
 ## Controlling Rectified Flow on CelebA-HQ
 
@@ -21,9 +20,17 @@ conda activate car_guidance_image
 ```
 
 > Note: if you hit `ImportError: ...libtorch_cpu.so: undefined symbol: iJIT_NotifyEvent`,
-> it's a missing runtime `libittnotify.so` in some environments. See `build_env.sh`
-> for a small workaround (a stub library preloaded on `conda activate`) that makes
-> `import torch` work.
+> it's a missing runtime `libittnotify.so` in some environments. The fix is to build a
+> minimal stub library and preload it. For example:
+>
+> ```bash
+> gcc -shared -fPIC -Wl,-soname,libittnotify.so -x c -o "${CONDA_PREFIX}/lib/libittnotify.so" - <<'EOF'
+> int iJIT_NotifyEvent(int t, void *d) { (void)t; (void)d; return 0; }
+> int iJIT_IsProfilingActive(void) { return 0; }
+> unsigned int iJIT_GetNewMethodID(void) { static unsigned int id = 1; return id++; }
+> EOF
+> export LD_PRELOAD="${CONDA_PREFIX}/lib/libittnotify.so${LD_PRELOAD:+:${LD_PRELOAD}}"
+> ```
 
 ### Run
 
