@@ -4,16 +4,6 @@ import numbers
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# 假设这些是你 OC 代码里原有的函数，直接 import 进来
-from .conflict_utils import (
-    visualize_spatial_conflict,
-    visualize_weighted_conflict,
-    overlay_heatmap_on_image,
-    visualize_pca_trajectory,
-    visualize_pca_trajectory_with_landscape,
-    visualize_gradient_angle,
-    plot_gradient_map,
-)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -138,8 +128,8 @@ class Up(nn.Module):
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
 
-class ImageGCovAGMOnlineGuidance:
-    def __init__(self, base_model, loss_fns, scales, config, learnable=True, conflict_weight=0.1, vis_dir=None):
+class ImageGCarOnlineGuidance:
+    def __init__(self, base_model, loss_fns, scales, config, learnable=True, conflict_weight=0.1):
         self.flow_model = base_model
         self.classifiers = loss_fns    # 对应 2D 里的 classifiers (这里是 L_N_list)
         self.scales = scales
@@ -149,7 +139,6 @@ class ImageGCovAGMOnlineGuidance:
         # 为了兼容 2D 的调用签名，填入 Dummy targets
         self.targets = [None] * len(loss_fns) 
         self.distribution = None       # 图像场景下没有真实的 Toy GT 分布
-        self.vis_dir = vis_dir
         self.conflict_weight = conflict_weight
         
         # 实例化残差网络 (默认处理3通道图像)
@@ -432,7 +421,7 @@ class ImageGCovAGMOnlineGuidance:
         self.learned_guidance_model.train()
         
         # 增加和 2D 一模一样的启动日志打印
-        print(f"[ImageGCovAGMOnlineGuidance] Training Online Residual model ({steps} steps)")
+        print(f"[ImageGCarOnlineGuidance] Training Online Residual model ({steps} steps)")
         
         # 下面的循环变量完全使用 steps
         for i in range(steps):
@@ -675,115 +664,6 @@ class ImageGCovAGMOnlineGuidance:
             total_obj = total_obj - float(lam) * loss
         return total_obj
 
-    def _save_gradient_heatmaps(self, g_base, g_res, step):
-        """
-        绘制并保存 Base 和 Residual 梯度的空间热力图 (仅取 Batch 中的第一张图)
-        """
-        import os
-        import matplotlib.pyplot as plt
-        import numpy as np
-
-        if self.vis_dir is None:
-            return
-
-        os.makedirs(self.vis_dir, exist_ok=True)
-
-        # 取 Batch 中的第一张图，并计算通道维度的 L2 范数 (即每个像素上的受力大小)
-        # 形状从 [B, C, H, W] -> [H, W]
-        base_mag = g_base[0].norm(dim=0).detach().cpu().numpy()
-        res_mag = g_res[0].norm(dim=0).detach().cpu().numpy()
-
-        # 归一化到 0-1 以便映射颜色
-        base_norm = (base_mag - base_mag.min()) / (base_mag.max() - base_mag.min() + 1e-8)
-        res_norm = (res_mag - res_mag.min()) / (res_mag.max() - res_mag.min() + 1e-8)
-
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-        
-        # 绘制 Base Guidance 热力图
-        im0 = axes[0].imshow(base_norm, cmap='turbo')
-        axes[0].set_title(f'Base Guidance (CLIP) - Step {step}')
-        axes[0].axis('off')
-        fig.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
-
-        # 绘制 Residual Guidance 热力图
-        im1 = axes[1].imshow(res_norm, cmap='turbo')
-        axes[1].set_title(f'Residual Guidance (U-Net) - Step {step}')
-        axes[1].axis('off')
-        fig.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
-
-        plt.tight_layout()
-        save_path = os.path.join(self.vis_dir, f'gradient_heatmap_step_{step:03d}.png')
-        plt.savefig(save_path, bbox_inches='tight', dpi=150)
-        plt.close(fig)
-
-    def _save_spatial_conflict_map(self, x, t, v_uncond, step):
-        """
-        可视化模型眼中真实的“空间冲突区域” (加入力量加权，过滤背景边缘噪声)
-        """
-        import os
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import torch.nn.functional as F
-
-        if self.vis_dir is None or len(self.classifiers) < 2:
-            return
-
-        with torch.enable_grad():
-            x_req = x.detach().clone().requires_grad_(True)
-            
-            t_ = t.view(-1, 1, 1, 1)
-            dt_remain = 1.0 - (t_ / 999.0)
-            x1_est = x_req if getattr(self.cfg, "estimate_x1", False) else x_req + dt_remain * v_uncond.detach()
-            
-            grads = []
-            for clf in self.classifiers[:2]: 
-                loss = clf(x1_est)
-                loss_scalar = loss.sum() if loss.dim() > 0 else loss
-                g = torch.autograd.grad(loss_scalar, x_req, retain_graph=True)[0]
-                grads.append(g)
-
-        g1 = grads[0][0] # [C, H, W]
-        g2 = grads[1][0]
-
-        # 1. 计算每个像素点的真实受力大小
-        norm1 = g1.norm(dim=0) # [H, W]
-        norm2 = g2.norm(dim=0)
-        
-        # 2. 计算方向冲突 (和之前一样)
-        g1_unit = g1 / (norm1.unsqueeze(0) + 1e-8)
-        g2_unit = g2 / (norm2.unsqueeze(0) + 1e-8)
-        cos_sim = (g1_unit * g2_unit).sum(dim=0) 
-        spatial_conflict = -cos_sim + 1.0 # 范围 [0, 2]
-        
-        # =========================================================
-        # 🔴 核心修复：计算加权掩码 (Magnitude Weighting)
-        # 只有当两个 Prompt 在同一个像素点上都发出了较大的力时，冲突才有效！
-        # =========================================================
-        max_norm = max(norm1.max().item(), norm2.max().item()) + 1e-8
-        
-        # 将受力大小归一化到 0~1，相乘作为该点的“活跃度权重”
-        weight_mask = (norm1 / max_norm) * (norm2 / max_norm)
-        
-        # 真正的冲突 = 方向相反程度 * 双方的力量大小
-        weighted_conflict = spatial_conflict * weight_mask
-        # =========================================================
-
-        # 平滑处理
-        sc_tensor = weighted_conflict.unsqueeze(0).unsqueeze(0)
-        smoothed_conflict = F.avg_pool2d(sc_tensor, kernel_size=5, stride=1, padding=2)
-        conflict_np = smoothed_conflict.squeeze().detach().cpu().numpy()
-
-        os.makedirs(self.vis_dir, exist_ok=True)
-        plt.figure(figsize=(6, 6))
-        # 换用 'inferno' 稍微暗一点的配色，更能凸显高亮区域
-        plt.imshow(conflict_np, cmap='inferno') 
-        plt.title(f"Weighted Spatial Conflict - Step {step}")
-        plt.colorbar()
-        plt.axis('off')
-        
-        save_path = os.path.join(self.vis_dir, f'model_spatial_conflict_step_{step:03d}.png')
-        plt.savefig(save_path, bbox_inches='tight', dpi=150)
-        plt.close()
     def _get_conflict_threshold_and_temperature(self):
         threshold = getattr(self.cfg, "conflict_threshold", 0.1)
         temperature = getattr(self.cfg, "conflict_temperature", 0.1)

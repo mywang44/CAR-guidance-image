@@ -26,13 +26,12 @@ echo "Current CXX: $CXX"
 #   > batch_size64_result_ocfm_multiprompt.log 2>&1 &
 
 # # flowgrad + oc + multiprompt + conflict
-# # gcar_ocfm_multiprompt (支持 --use_true_landscape 真实采样 Loss 地形)
+# # gcar_ocfm_multiprompt
 # CUDA_VISIBLE_DEVICES=0 nohup python ./main_data.py \
 #   --method=gcar_ocfm_multiprompt \
 #   --conflict_threshold=0.2 \
 #   --conflict_weight=0.0 \
 #   --conflict_lr=2.5 \
-#   --use_true_landscape \
 #   > batch_size64_result_gcar_ocfm_multiprompt_cw00.log 2>&1 &
 
 # CUDA_VISIBLE_DEVICES=2 nohup python ./main_data.py \
@@ -40,7 +39,6 @@ echo "Current CXX: $CXX"
 #   --conflict_threshold=0.2 \
 #   --conflict_weight=0.03 \
 #   --conflict_lr=2.5 \
-#   --use_true_landscape \
 #   > batch_size64_result_gcar_ocfm_multiprompt_cw003.log 2>&1 &
 
 # CUDA_VISIBLE_DEVICES=2 nohup python ./main_data.py \
@@ -48,7 +46,6 @@ echo "Current CXX: $CXX"
 #   --conflict_threshold=0.2 \
 #   --conflict_weight=0.08 \
 #   --conflict_lr=2.5 \
-#   --use_true_landscape \
 #   > batch_size64_result_gcar_ocfm_multiprompt_cw008.log 2>&1 &
 
 # # # flowgrad + multiprompt
@@ -62,26 +59,23 @@ echo "Current CXX: $CXX"
 #   --method=gcovA_multiprompt \
 #   > batch_size64_result_gcovA_multiprompt.log 2>&1 &
 
-# # gcar_gcovA_multiprompt (hybrid: gcovA + residual OC)
+# # gcar (Trained Residual Guidance)
 # CUDA_VISIBLE_DEVICES=2 nohup python ./main_data.py \
 #   --method=gcar_gcovA_multiprompt \
 #   --conflict_weight=0.0 \
 #   --conflict_lr=2.5 \
-#   --use_true_landscape \
 #   > batch_size64_result_gcar_gcovA_multiprompt_cw00.log 2>&1 &
 
 # CUDA_VISIBLE_DEVICES=3 nohup python ./main_data.py \
 #   --method=gcar_gcovA_multiprompt \
 #   --conflict_weight=0.03 \
 #   --conflict_lr=2.5 \
-#   --use_true_landscape \
 #   > batch_size64_result_gcar_gcovA_multiprompt_cw003.log 2>&1 &
 
 # CUDA_VISIBLE_DEVICES=3 nohup python ./main_data.py \
 #   --method=gcar_gcovA_multiprompt \
 #   --conflict_weight=0.08 \
 #   --conflict_lr=2.5 \
-#   --use_true_landscape \
 #   > batch_size64_result_gcar_gcovA_multiprompt_cw008.log 2>&1 &
   
 
@@ -90,26 +84,23 @@ CUDA_VISIBLE_DEVICES=1 nohup python ./main_data.py \
   --method=gcovA_multiprompt \
   > 5_batch_size64_result_gcovA_multiprompt.log 2>&1 &
 
-# gcar_gcovA_multiprompt (hybrid: gcovA + residual OC)
+# gcar (Trained Residual Guidance)
 CUDA_VISIBLE_DEVICES=1 nohup python ./main_data.py \
   --method=gcar_gcovA_multiprompt \
   --conflict_weight=0.0 \
   --conflict_lr=2.5 \
-  --use_true_landscape \
   > 5_batch_size64_result_gcar_gcovA_multiprompt_cw00.log 2>&1 &
 
 CUDA_VISIBLE_DEVICES=3 nohup python ./main_data.py \
   --method=gcar_gcovA_multiprompt \
   --conflict_weight=0.03 \
   --conflict_lr=2.5 \
-  --use_true_landscape \
   > 5_batch_size64_result_gcar_gcovA_multiprompt_cw003.log 2>&1 &
 
 CUDA_VISIBLE_DEVICES=3 nohup python ./main_data.py \
   --method=gcar_gcovA_multiprompt \
   --conflict_weight=0.08 \
   --conflict_lr=2.5 \
-  --use_true_landscape \
   > 5_batch_size64_result_gcar_gcovA_multiprompt_cw008.log 2>&1 &
   
 

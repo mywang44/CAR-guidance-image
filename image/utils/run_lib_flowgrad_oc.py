@@ -21,28 +21,10 @@ from RectifiedFlow.models.utils import get_model_fn
 from RectifiedFlow.models import utils as mutils
 
 from .flowgrad_utils import get_img, embed_to_latent, clip_semantic_loss, save_img, generate_traj
-from .conflict_utils import (
-    visualize_spatial_conflict,
-    visualize_weighted_conflict,
-    overlay_heatmap_on_image,
-    visualize_pca_trajectory,
-    visualize_pca_trajectory_with_landscape,
-    visualize_gradient_angle,
-    plot_gradient_map,
-)
 # from id_loss.loss_fn import IDLoss
 
 import torch.nn.functional as F
 import torch.backends.cuda
-import matplotlib
-matplotlib.use('Agg')  # 使用非交互式后端，适合服务器环境
-import matplotlib.pyplot as plt
-try:
-    from sklearn.decomposition import PCA
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
-    print("Warning: sklearn not available, PCA visualization will be disabled")
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -52,10 +34,9 @@ os.environ['TORCH_CUDA_ARCH_LIST'] = '7.0'
 
 FLAGS = flags.FLAGS
 
-def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text_prompts, output_dir, 
-                                           method='hybrid_multiprompt', alpha=0.7, 
+def gcar_edit_batch_multiprompt(config, model_path, image_paths, text_prompts, output_dir, 
+                                           method='gcar', alpha=0.7, 
                                            lr_gcov=1.0, lr_res=2.5, conflict_weight=None,
-                                           use_true_landscape=False,
                                            use_L_best=True,
                                            save_single_prompt=True,
                                            save_combined=True):
@@ -73,7 +54,7 @@ def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text
     num_prompts = len(text_prompts)
 
     print(f"\n{'='*60}")
-    print(f"Hybrid Multi-prompt (gcovA + Residual OC):")
+    print(f"GCAR Multi-prompt (Trained Residual Guidance):")
     for idx, prompt in enumerate(text_prompts):
         print(f"  Prompt {idx+1}: {prompt}")
     print(f"{'='*60}\n")
@@ -102,12 +83,10 @@ def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text
         # 也可以跑一条基准轨迹供对比参考
         traj = generate_traj(model_fn, y_0, N=N)
 
-        print(f'\nHybrid optimization starts: {img_path} -> {opt_img_path}')
+        print(f'\nGCAR optimization starts: {img_path} -> {opt_img_path}')
         u_ind = [_ for _ in range(N)]
         L_N_list = [clip_loss.L_N for clip_loss in clip_loss_list]
         
-
-        vis_dir = os.path.join(target_dir, f'conflict_maps_cw{conflict_weight}') if conflict_weight is not None else None
         # =========================================================
         # 🔴 新增：构造用于训练的鲁棒 Batch Latent
         # =========================================================
@@ -134,16 +113,15 @@ def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text
         # =====================================================================
         is_learnable = True # 开启 Residual Net 的训练模式
         
-        from utils.composed_guidance import ImageGCovAGMOnlineGuidance
+        from utils.composed_guidance import ImageGCarOnlineGuidance
         lr_gcov = 4400
-        guided_field = ImageGCovAGMOnlineGuidance(
+        guided_field = ImageGCarOnlineGuidance(
             base_model=model_fn,                 # 对应源流匹配的 `vf` (基础速度场)
             loss_fns=L_N_list,                   # 对应源流匹配的 `classifiers`
             scales=[lr_gcov] * num_prompts,       # 对应源流匹配的 `scales`
             config=config,
             learnable=is_learnable,
             conflict_weight=conflict_weight,
-            vis_dir=vis_dir
         )
 
         # 触发 Residual Net 的在线训练 (调解冲突)
@@ -162,22 +140,16 @@ def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text
         #    v_total(x, t) = v_base(x, t) + v_gcov(x, t) + v_res_net(x, t)。
         # 3. 因此，我们不再需要传递 `u`，直接把 `guided_field` 当作 `dynamic` 传给求解器。
         # =====================================================================
-        print("\n--- Generating final trajectory with Train-based Guidance ---")
+        print("\n--- Generating final trajectory with GCAR (Trained Residual Guidance) ---")
         # 3. 最终推理时：回归纯净！
         # 此时 Residual Net 已经具备了处理冲突的能力，我们对原汁原味的 y_0 进行生成，
         # 以确保最大限度保留原图的 Structure Prior (结构先验)，不被随机噪声破坏。
         traj_oc = generate_traj(guided_field, z0=y_0, u=None, N=N)
 
-        # # 这里的效果拆解（对应源流匹配的 likelihood/residual 分解）
-        # # 可以在 guided_field 内部或者此处调用类似 visualize_residual_decomposition 的方法
-        # if vis_dir:
-        #     guided_field.visualize_residual_decomposition(z0=y_0, N=N)
-        # =====================================================================
-
         # 保存图像
         if opt_img_path is not None:
             save_img(inverse_scaler(traj_oc[-1]), path=opt_img_path)
-            
+
         # =========================================================
         # 🔴 Debug1: 仿照 OC 范式，单独保存每个 Prompt 的独立引导结果
         # 仅当外部传入 save_single_prompt=True 时才运行
@@ -188,14 +160,13 @@ def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text
             for p_idx in range(num_prompts):
                 # 1. 为当前单一 Prompt 构造一个专属的引导场
                 # 因为单 Prompt 没有冲突，所以直接关闭 learnable 和 conflict_weight
-                single_guided_field = ImageGCovAGMOnlineGuidance(
+                single_guided_field = ImageGCarOnlineGuidance(
                     base_model=model_fn,
                     loss_fns=[L_N_list[p_idx]],       # 🔴 关键：只传入当前这一个 CLIP Loss
                     scales=[lr_gcov],      # 🔴 使用 lr_gcov 对齐 OC 强度
                     config=config,
                     learnable=False,                  # 调试单目标不需要训练残差网络，纯 gcovA 引导极快
                     conflict_weight=0.0,              # 无冲突
-                    vis_dir=None
                 )
                 
                 # 2. 用这单独的一份引导场，重新跑一条纯净轨迹 (起点依然用最干净的 y_0)
@@ -214,15 +185,14 @@ def flowgrad_edit_batch_hybrid_multiprompt(config, model_path, image_paths, text
             print("\n--- Generating Combined Trajectory ---")
             lr_gcov = 4400
             # 实例化合并引导场，严格关闭所有网络学习和冲突项
-            from utils.composed_guidance import ImageGCovAGMOnlineGuidance
-            combined_guided_field = ImageGCovAGMOnlineGuidance(
+            from utils.composed_guidance import ImageGCarOnlineGuidance
+            combined_guided_field = ImageGCarOnlineGuidance(
                 base_model=model_fn,
                 loss_fns=L_N_list,                          
                 scales=[lr_gcov] * num_prompts,    
                 config=config,
                 learnable=False,                  # ✅ 彻底关闭 Residual Net
                 conflict_weight=0.0,              # ✅ 设为0，不计算冲突
-                vis_dir=None
             )
 
             # 最终推理：直接生成纯线性叠加的轨迹

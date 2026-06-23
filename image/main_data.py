@@ -23,10 +23,9 @@ flags.DEFINE_string('method', 'gcar_gcovA_multiprompt', '[gcar_gcovA_multiprompt
 flags.DEFINE_integer("batch_size", 1, "Batch size")
 flags.DEFINE_integer("index", 0, "Position of samples")
 
-# Conflict & Hybrid Parameters
+# Conflict & GCAR Parameters
 flags.DEFINE_float('conflict_weight', 0.3, 'Weight for conflict score minimization')
 flags.DEFINE_float('conflict_lr', 2.5, 'Learning rate for conflict methods')
-flags.DEFINE_bool('use_true_landscape', False, 'Use true sampling for Loss Landscape')
 flags.DEFINE_bool('use_L_best', True, 'Return controls from best metric (L_best); else return last step')
 
 # Global Constants
@@ -72,7 +71,7 @@ def main(argv):
     # 整轮运行共用一个输出文件夹: gcar_{时间戳}
     run_folder = f'gcar_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
 
-    # --- Execution Logic: gcar_gcovA_multiprompt (Hybrid gcovA + Residual OC) ---
+    # --- Execution Logic: gcar (Trained Residual Guidance) ---
     # 定义任务列表：包含 (Prompt列表, 任务名称前缀)
     tasks = [
         # Task 1: Sad + Angry
@@ -112,12 +111,11 @@ def main(argv):
 
             current_batch_paths = [img_path]
 
-            print("Using Hybrid (gcovA + Residual OC)")
-            run_lib_flowgrad_oc.flowgrad_edit_batch_hybrid_multiprompt(
+            print("Using GCAR (Trained Residual Guidance)")
+            run_lib_flowgrad_oc.gcar_edit_batch_multiprompt(
                 FLAGS.config, MODEL_PATH, current_batch_paths, current_prompts, output_dir,
                 method=FLAGS.method, alpha=ALPHA, lr_gcov=LR_DEFAULT, lr_res=FLAGS.conflict_lr,
                 conflict_weight=FLAGS.conflict_weight,
-                use_true_landscape=FLAGS.use_true_landscape,
                 use_L_best=FLAGS.use_L_best
             )
 
