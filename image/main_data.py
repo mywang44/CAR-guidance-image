@@ -125,6 +125,6 @@ if __name__ == "__main__":
     app.run(main)
 
 
-# CUDA_VISIBLE_DEVICES=7 nohup python -u /home/users/meiyi/Guided-Flow-Matching-with-Optimal-Control/image/main_data.py > generate_sad_smile_sad_curly.log 2>&1 &
-# CUDA_VISIBLE_DEVICES=3 nohup python -u /home/users/meiyi/Guided-Flow-Matching-with-Optimal-Control/image/main_data.py > train4400-sm.log 2>&1 &
-# CUDA_VISIBLE_DEVICES=2 nohup python -u /home/users/meiyi/Guided-Flow-Matching-with-Optimal-Control/image/main_data.py > PCGrad_baseline.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=7 nohup python -u /home/users/meiyi/CAR-guidance-image/image/main_data.py > generate_sad_smile_sad_curly.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=3 nohup python -u /home/users/meiyi/CAR-guidance-image/image/main_data.py > train4400-sm.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=2 nohup python -u /home/users/meiyi/CAR-guidance-image/image/main_data.py > PCGrad_baseline.log 2>&1 &
